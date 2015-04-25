@@ -89,7 +89,8 @@
           chartType: '=',
           legend: '@',
           click: '=',
-          hover: '='
+          hover: '=',
+          shifty: '@'
         },
         link: function (scope, elem/*, attrs */) {
           var chart, container = document.createElement('div');
@@ -104,14 +105,16 @@
           }
 
           // Order of setting "watch" matter
-
+          scope.labelSeed = 0;
           scope.$watch('data', function (newVal, oldVal) {
             if (! newVal || ! newVal.length || (Array.isArray(newVal[0]) && ! newVal[0].length)) return;
             var chartType = type || scope.chartType;
             if (! chartType) return;
 
             if (chart) {
-              if (canUpdateChart(newVal, oldVal)) return updateChart(chart, newVal, scope);
+              var shifty = scope.shifty ? parseInt(scope.shifty) : 0;
+              if (shifty > 0 || canUpdateChart(newVal, oldVal))
+                return updateChart(chart, newVal, scope, shifty);
               chart.destroy();
             }
 
@@ -274,19 +277,28 @@
       else $parent.append(legend);
     }
 
-    function updateChart (chart, values, scope) {
+    function updateChart (chart, values, scope, shifty) {
       if (Array.isArray(scope.data[0])) {
-        chart.datasets.forEach(function (dataset, i) {
-          (dataset.points || dataset.bars).forEach(function (dataItem, j) {
-            dataItem.value = values[i][j];
+        if (shifty > 0) {
+          var vals = [];
+          var idx = values[0].length - 1;
+          for (var x = 0; x < values.length; ++x) vals.push(values[x][idx]);
+          chart.addData(vals, ++scope.labelSeed);
+          if (values[0].length == shifty) chart.removeData();
+        } else {
+          chart.datasets.forEach(function (dataset, i) {
+            (dataset.points || dataset.bars).forEach(function (dataItem, j) {
+              dataItem.value = values[i][j];
+            });
           });
-        });
+          chart.update();
+        }
       } else {
         chart.segments.forEach(function (segment, i) {
           segment.value = values[i];
         });
+        chart.update();
       }
-      chart.update();
       scope.$emit('update', chart);
     }
 
